@@ -8,6 +8,7 @@ WORKDIR /app
 ARG USE_CHINA_NPM_REGISTRY=0
 RUN \
     set -ex && \
+    corepack enable pnpm && \
     if [ "$USE_CHINA_NPM_REGISTRY" = 1 ]; then \
         echo 'use npm mirror' && \
         npm config set registry https://registry.npmmirror.com && \
@@ -16,6 +17,7 @@ RUN \
     fi;
 
 COPY ./tsconfig.json /app/
+COPY ./patches /app/patches
 COPY ./pnpm-lock.yaml /app/
 COPY ./package.json /app/
 
@@ -23,7 +25,6 @@ COPY ./package.json /app/
 RUN \
     set -ex && \
     export PUPPETEER_SKIP_DOWNLOAD=true && \
-    corepack enable pnpm && \
     pnpm install --frozen-lockfile && \
     pnpm rb
 
@@ -103,7 +104,7 @@ RUN \
         echo 'Downloading Chromium...' && \
         unset PUPPETEER_SKIP_DOWNLOAD && \
         corepack enable pnpm && \
-        pnpm add puppeteer@$(cat /app/.puppeteer_version) --save-prod && \
+        pnpm --allow-build=puppeteer add puppeteer@$(cat /app/.puppeteer_version) --save-prod && \
         pnpm rb ; \
     else \
         mkdir -p /app/node_modules/.cache/puppeteer ; \
@@ -115,8 +116,8 @@ FROM node:22-bookworm-slim AS app
 
 LABEL org.opencontainers.image.authors="https://github.com/DIYgod/RSSHub"
 
-ENV NODE_ENV production
-ENV TZ Asia/Shanghai
+ENV NODE_ENV=production
+ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 
@@ -132,7 +133,7 @@ RUN \
     set -ex && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
-        dumb-init git \
+        dumb-init git curl \
     ; \
     if [ "$PUPPETEER_SKIP_DOWNLOAD" = 0 ]; then \
         if [ "$TARGETPLATFORM" = 'linux/amd64' ]; then \
